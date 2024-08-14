@@ -86,8 +86,8 @@ class Rating(commands.Cog):
         with open('data/time_data.json', 'r') as f:
             self.data_time = json.load(f)
         self.channel = None
-        self.t3 = []  # Объявляем список как атрибут класса
-        self.trigger = 1
+        self.t3 = {}  # Объявляем список как атрибут класса
+        self.trigger = 0
 
     def reload_rate(self):
         del self.rating
@@ -134,16 +134,13 @@ class Rating(commands.Cog):
                     break
 
         if self.data_messages[bb] % 50 == 0:
-            self.rating[bb] += 5
+            self.rating[bb] += 3
             await message.reply(f"{bb}, поздравляю тебя, ты уже написал целых {self.data_messages[bb]} сообщения(й), за это я награжу тебя. Продолжай в том же духе!")
             await message.reply(f"{bb} получил +5 рейтинга за свою активность, истинный дегенерат!")
             if self.rating[bb] == 100:
                 await message.reply(file=disnake.File("imgs/catwoman.jpg"))
             else:
                 await message.reply(file=disnake.File("imgs/5soc.jpg"))
-
-            with open('data/data_messages.json', 'w') as k:
-                json.dump(self.data_messages, k, indent=4)
 
             with open('data/data.json', 'w') as f:
                 json.dump(self.rating, f, indent=4)
@@ -156,6 +153,9 @@ class Rating(commands.Cog):
                     json.dump(self.rating, f, indent=4)
             else:
                 await message.reply("Не много тебе,чепуха?")
+
+        with open('data/data_messages.json', 'w') as k:
+            json.dump(self.data_messages, k, indent=4)
 
     @commands.slash_command()
     @commands.has_any_role(1089868546286289006)
@@ -172,9 +172,10 @@ class Rating(commands.Cog):
     )
     async def rate(self, inter):
         self.reload_rate()
+        rate_sort = {k : v for k, v in sorted(self.rating.items(), reverse=True, key=lambda item: item[1])}
         all_rate = ""
-        for key in self.rating:
-            all_rate += " " + key + " - " + str(self.rating[key]) + "\n"
+        for key in rate_sort:
+            all_rate += " " + key + " - " + str(rate_sort[key]) + "\n"
         embed_rating = disnake.Embed(
             title="Вот рейтинг на сегодня:",
             description=all_rate,
@@ -187,10 +188,21 @@ class Rating(commands.Cog):
         bb = "<@" + str(inter.author.id) + ">"
         await inter.send(f"У тебя {self.data_messages[bb]} сообщени{scl(self.data_messages[bb])}")
 
+    @commands.slash_command()
+    async def mytime(self, inter):
+        with open("data/time_data.json") as f:
+            data_time = json.load(f)
+        bb = int(data_time["<@" + str(inter.author.id) + ">"]//60)
+        embed = disnake.Embed(color=disnake.Color.from_rgb(152,215,44))
+        embed.add_field(name="Проведено в голосовых каналах:",value=f"```ansi\n[2;32m{bb} минут{scl(bb,1)}[0m\n```",inline=True)
+        embed.add_field(name="До получения рейтинга осталось:", value=f"```ansi\n[2;35m{1440 - bb} минут{scl(1440 - bb,1)}[0m\n```",inline=True)
+
+        await inter.send(embed=embed)
+
     @commands.slash_command(description="ход жопой")
     @commands.has_any_role(1089868546286289006, 910982734074249237)
     async def change_rate(self, inter, mention, number):
-        social_plus = ['imgs/pudge.jpg', 'imgs/rf.jpg', 'imgs/social.jpg', 'imgs/social2.jpg', 'imgs/social_prima.jpg',
+        social_plus = ['imgs/pudge.jpg', 'imgs/rf.jpg', 'imgs/social2.jpg', 'imgs/social_prima.jpg',
                        'imgs/social_valve.']
         social_minus = ['imgs/minus_social.png', 'imgs/minus_social2.jpg', 'imgs/social3.png', 'imgs/social4.png']
         embed_ret = disnake.Embed(
@@ -198,17 +210,16 @@ class Rating(commands.Cog):
             description=f'у {mention} рейтинг {self.rating[mention] + int(number)}',
             color=0xffffff
         )
-        if int(number) > 0:
+        if int(number) >= 0:
             embed_ret.set_image(file=disnake.File(random.choice(social_plus)))
         elif int(number) < 0 and self.rating[mention] - int(number) < 0:
             embed_ret.set_image(file=disnake.File(random.choice(social_minus)))
-        else:
-            embed_ret.set_image(file=disnake.File("imgs/social.jpg"))
         self.rating[mention] += int(number)
 
         with open('data/data.json', 'w') as f:
             json.dump(self.rating, f, indent=4)
         await inter.send(embed=embed_ret)
+        self.reload_rate()
 
     @commands.slash_command()
     async def bet(self, inter, причина: str, ставка: int, человек: disnake.Member):
@@ -227,36 +238,59 @@ class Rating(commands.Cog):
         if member.mention == "<@724317992367685906>":
             if after.channel and after.channel.id == 1012106016332189747:
                 await member.move_to(channel=None)
+
         if member.bot:
             return
-        if after.self_deaf and after.channel:  # Проверяем, находится ли участник в голосовом канале
-            b3 = time.time()
-            self.t3.append(b3)
-        if before.self_deaf and before.channel:  # Проверяем, находится ли участник в голосовом канале
-            t4 = time.time()
-            self.data_time[member.mention] -= t4 - self.t3[0]
 
-        if before.channel is None and after.channel is not None:
-            self.t1 = time.time()
-        elif before.channel is not None and after.channel is None:
-            t2 = time.time()
-            self.data_time[member.mention] += t2 - self.t1
-            if self.data_time[member.mention] >= 86400:
-                self.data_time[member.mention] -= 86400
-                self.rating[member.mention] += 7
-                await self.cha.send(f"{member.mention} получил 7 рейтинга. Трать дальше свою жизнь впустую!")
+        try:
+            # Начало отсчета времени
+            if before.channel is None and after.channel is not None:
+                self.t1 = time.time()
+                self.data_time[member.mention] = self.data_time.get(member.mention, 0)
 
-        if before.self_deaf != after.self_deaf:
+            # Конец отсчета времени
+            elif before.channel is not None and after.channel is None:
+                t2 = time.time()
+                if member.mention in self.t3 and self.t3[member.mention] is not None:
+                    t2 = self.t3[member.mention]  # использовать время, когда пользователь вышел из мута
+                self.data_time[member.mention] += t2 - self.t1
+                if self.data_time[member.mention] >= 86400:
+                    self.data_time[member.mention] -= 86400
+                    self.rating[member.mention] += 7
+                    await self.cha.send(f"{member.mention} получил 7 рейтинга. Трать дальше свою жизнь впустую!")
+
+            # Пользователь замутился
+            if after.self_deaf and after.channel:
+                self.t3[member.mention] = time.time()
+
+            # Пользователь размутился
+            if before.self_deaf and not after.self_deaf:
+                if member.mention in self.t3 and self.t3[member.mention] is not None:
+                    self.t1 += time.time() - self.t3[member.mention]
+                self.t3[member.mention] = None
+
+            if before.self_deaf != after.self_deaf:
+                self.reload_rate()
+
+                await reward(member, self.rating, self.trigger)
+
+            with open('data/time_data.json', 'w') as f:
+                json.dump(self.data_time, f, indent=4)
+            with open('data/data.json', 'w') as f:
+                json.dump(self.rating, f, indent=4)
+
             self.reload_rate()
-            await reward(member,self.rating,self.trigger)
-
-        with open('data/time_data.json', 'w') as f:
-            json.dump(self.data_time, f, indent=4)
-        with open('data/data.json', 'w') as f:
-            json.dump(self.rating, f, indent=4)
-
-        self.reload_rate()
-        await reward(member,self.rating,0)
+            await reward(member,self.rating,0)
+        except KeyError:
+            self.rating[f"<@{member.id}>"] = 0
+            self.data_time[f"<@{member.id}>"] = 0
+            self.data_messages[f"<@{member.id}>"] = 0
+            with open('data/time_data.json', 'w') as f:
+                json.dump(self.data_time, f, indent=4)
+            with open('data/data.json', 'w') as f:
+                json.dump(self.rating, f, indent=4)
+            with open('data/data_messages.json', 'w') as f:
+                json.dump(self.data_messages, f, indent=4)
 
 
 async def reward(member,rating,trigger):
@@ -264,7 +298,6 @@ async def reward(member,rating,trigger):
     vip = gg.get_role(1240673696910278686)
     norm = gg.get_role(1253372831094407269)
     shitter = gg.get_role(1253372196592812124)
-
     if rating[f"<@{member.id}>"] >= 0:
         if norm not in member.roles:
             await member.add_roles(norm)
@@ -295,13 +328,13 @@ async def reward(member,rating,trigger):
 with open("data/data_messages.json", 'r') as f:
     data_messages = f.read()
 
-def scl(bb):
+def scl(bb, c = 0):
     if bb % 10 == 1:
-        return 'e'
+        return 'e' if c == 0 else "а"
     elif (bb % 10 >= 2) and (bb % 10 <= 4):
-        return 'я'
+        return 'я' if c == 0 else "ы"
     elif (5 <= (bb % 10) <= 20) or bb % 10 == 0:
-        return 'й'
+        return 'й' if c == 0 else ""
 
 
 def setup(bot):

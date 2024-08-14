@@ -13,8 +13,15 @@ class Console(commands.Cog):
         console_thread = threading.Thread(target=self.run_console_comm, daemon=True)
         console_thread.start()
 
+    async def kick_all_from_voice(self):
+        for guild in self.bot.guilds:
+            for channel in guild.voice_channels:
+                for member in channel.members:
+                    await member.move_to(None)
+        print("Все пользователи кикнуты из голосовых каналов.")
+
     async def console_comm(self):
-        sleep(3.8)
+        sleep(4)
         while not self.stop_event.is_set():
             print("Введите команду: ", end='')
             botchan = self.bot.get_channel(1216378623301521468)
@@ -23,24 +30,47 @@ class Console(commands.Cog):
             command = str(input())
             if command == "stop":
                 print("Остановка бота...")
+                botchan = self.bot.get_channel(1216378623301521468)
                 self.stop_event.set()
+                asyncio.run_coroutine_threadsafe(botchan.send(f"Выключение бота через 15 секунд"), self.bot.loop)
+                await asyncio.sleep(15)
+                asyncio.run_coroutine_threadsafe(self.kick_all_from_voice(), self.bot.loop)
+                await asyncio.sleep(3)
                 asyncio.run_coroutine_threadsafe(self.bot.close(), self.bot.loop)
                 print("Бот успешно остановлен!")
+
             elif command == "servers":
                 jj = []
                 for guild in self.bot.guilds:
                     jj.append(guild.name)
                 print(f"Количество серверов: {len(jj)}, сервера: {jj}")
+
             elif command == "exit":
                 print("Консоль закрыта")
                 break
+
             elif command.startswith("send_do"):
                 message = command[8:]
                 asyncio.run_coroutine_threadsafe(channel.send(message), self.bot.loop)
+
             elif command.startswith("send_in"):
                 bb = command.split(" ")
                 channel = self.bot.get_channel(int(bb[1]))
                 asyncio.run_coroutine_threadsafe(channel.send(" ".join(bb[2:])), self.bot.loop)
+
+            elif command.startswith("aboba"):
+                with open("data/time_data.json", "r") as f:
+                    boba = json.load(f)
+
+                for guild in self.bot.guilds:
+                    for man in guild.members:
+                        if man.bot:
+                            continue
+                        boba[f"<@{man.id}>"] = 0
+
+                with open("data/time_data.json","w") as f:
+                    json.dump(boba,f,indent=4)
+
             elif command.startswith("endbet"):
                 with open("data/bets.json", "r") as file:
                     bets = json.load(file)
@@ -93,6 +123,7 @@ class Console(commands.Cog):
                 except KeyError:
                     if reason not in bets:
                         print("Нет такого спора.")
+
             else:
                 print(f"Неизвестная команда")
 
