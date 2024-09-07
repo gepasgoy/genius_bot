@@ -13,19 +13,20 @@ class Buff(commands.Cog):
             self.buff_data = json.load(f)
 
     @commands.slash_command()
-    async def buff(self,inter, id):
+    async def buff(self, inter, id):
         if id in self.buff_data:
             id = self.buff_data[id]
         header = {"user-agent": fake_useragent.UserAgent().random}
         img, tex = parser(id,header)
         embed = disnake.Embed(
+            colour=disnake.Colour.from_rgb(8, 60, 84),
             title=tex
         )
         embed.set_thumbnail(url=img)
         await inter.send(embed=embed)
 
     @commands.slash_command(description="Укажи свой id стима или доты, чтобы ты смог удобно чекать стату")
-    async def myid(self,inter,id):
+    async def myid(self, inter, id):
        self.buff_data[f"<@{inter.user.id}>"] = int(id)
        await inter.send("Твой id успешно изменён!")
        with open("data/buff_id_data.json", "w") as f:

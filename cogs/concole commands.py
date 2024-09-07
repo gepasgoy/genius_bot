@@ -4,6 +4,7 @@ import threading
 import asyncio
 import json
 from time import sleep
+from os import path
 
 
 class Console(commands.Cog):
@@ -58,8 +59,39 @@ class Console(commands.Cog):
                 channel = self.bot.get_channel(int(bb[1]))
                 asyncio.run_coroutine_threadsafe(channel.send(" ".join(bb[2:])), self.bot.loop)
 
+            elif command.startswith("add"):
+                bb = command.split(" ")
+
+                if not bb[-1].isdigit():
+                    bb.append("0")
+
+                if bb[-3] == "in":
+                    if path.isfile(f"{bb[-2]}"):
+                        with open(f"data/{bb[-2]}.json") as f:
+                            boba = json.load(f)
+                        boba[bb[1]] = bb[-1]
+                    else:
+                        print("нет такого файла")
+                else:
+                    with open("data/data.json", "r") as f:
+                        self.rating = json.load(f)
+                    with open("data/data_messages.json", "r") as k:
+                        self.data_messages = json.load(k)
+                    with open('data/time_data.json', 'r') as f:
+                        self.data_time = json.load(f)
+                    self.rating[f"<@{bb[1]}>"] = 0
+                    self.data_time[f"<@{bb[1]}>"] = [0, 0]
+                    self.data_messages[f"<@{bb[1]}>"] = 0
+                    with open('data/time_data.json', 'w') as f:
+                        json.dump(self.data_time, f, indent=4)
+                    with open('data/data.json', 'w') as f:
+                        json.dump(self.rating, f, indent=4)
+                    with open('data/data_messages.json', 'w') as f:
+                        json.dump(self.data_messages, f, indent=4)
+
             elif command.startswith("aboba"):
-                with open("data/time_data.json", "r") as f:
+                bb = command.split(" ")
+                with open(f"data/{bb[1:]}.json", "r") as f:
                     boba = json.load(f)
 
                 for guild in self.bot.guilds:
@@ -68,8 +100,8 @@ class Console(commands.Cog):
                             continue
                         boba[f"<@{man.id}>"] = 0
 
-                with open("data/time_data.json","w") as f:
-                    json.dump(boba,f,indent=4)
+                with open(f"data/{bb[1:]}","w") as f:
+                    json.dump(boba, f, indent=4)
 
             elif command.startswith("endbet"):
                 with open("data/bets.json", "r") as file:
