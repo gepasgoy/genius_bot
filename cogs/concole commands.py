@@ -1,3 +1,5 @@
+import subprocess
+from subprocess import run
 import disnake
 from disnake.ext import commands
 import threading
@@ -22,7 +24,7 @@ class Console(commands.Cog):
         print("Все пользователи кикнуты из голосовых каналов.")
 
     async def console_comm(self):
-        sleep(4)
+        sleep(5.5)
         while not self.stop_event.is_set():
             print("Введите команду: ", end='')
             botchan = self.bot.get_channel(1216378623301521468)
@@ -49,6 +51,10 @@ class Console(commands.Cog):
             elif command == "exit":
                 print("Консоль закрыта")
                 break
+
+            elif command == "restart":
+                asyncio.run_coroutine_threadsafe(self.bot.close(), self.bot.loop)
+                subprocess.run(["python", "bot.py"])
 
             elif command.startswith("send_do"):
                 message = command[8:]
@@ -108,8 +114,9 @@ class Console(commands.Cog):
                     bets = json.load(file)
                 with open("data/data.json", "r") as f:
                     rate = json.load(f)
-                reason = command.split()[1]
-                num = command.split()[2]
+                reason = " ".join(command.split()[1:-1])
+                print(reason)
+                num = command.split()[-1]
                 try:
                     bet = bets[reason]["bet"]
                     len_a = len([x for x in bets[reason]["participants"].values() if x == "author"])

@@ -56,7 +56,7 @@ class BetView(disnake.ui.View):
 
 
 def create_bet(author_id, human_id, bet, reason):
-    with open("data/bets.json", "r") as file:
+    with open("data/bets.json", "r", encoding="utf-8") as file:
         try:
             bets = json.load(file)
         except json.JSONDecodeError:
@@ -97,7 +97,7 @@ class Rating(commands.Cog):
             self.rating = json.load(f)
         return self.rating
 
-    @tasks.loop(minutes=5)
+    @tasks.loop(minutes=10)
     async def check_connection(self):
         try:
             await self.bot.wait_until_ready()
@@ -201,9 +201,10 @@ class Rating(commands.Cog):
     @commands.slash_command()
     async def mytime(self, inter):
         await inter.response.defer()
-
+        await asyncio.sleep(4)
         with open("data/time_data.json") as f:
             data_time = json.load(f)
+
         bb = int(data_time["<@" + str(inter.author.id) + ">"][0]//60)
         cc = data_time["<@" + str(inter.author.id) + ">"][1]*86400//60
         embed = disnake.Embed(color=disnake.Color.from_rgb(152,215,44))
@@ -256,66 +257,57 @@ class Rating(commands.Cog):
         if member.bot:
             return
 
-        # try:
-        with open("data/t1.json", "r") as f:
-            self.t1 = json.load(f)
-        # Начало отсчета времени
-        if before.channel is None and after.channel is not None:
-            self.t1[member.mention] = [time.time(), "bb"]
-            self.data_time[member.mention] = self.data_time.get(member.mention, 0)
-            with open("data/t1.json", "w") as f:
-                json.dump(self.t1, f, indent=4)
-        # Конец отсчета времени
-        elif before.channel is not None and after.channel is None:
-            t2 = time.time()
-            if self.t1[member.mention][1] != "bb":
-                t2 = self.t1[member.mention][1]
-            self.data_time[member.mention][0] += t2 - self.t1[member.mention][0]
-            if self.data_time[member.mention][0] >= 86400:
-                self.data_time[member.mention][0] -= 86400
-                self.data_time[member.mention][1] += 1
-                self.rating[member.mention] += 7
-                await self.cha.send(f"{member.mention} получил 7 рейтинга. Трать дальше свою жизнь впустую!")
-            self.t1[member.mention][0] = "None"
-            with open("data/t1.json", "w") as f:
-                json.dump(self.t1, f, indent=4)
+        try:
+            with open("data/t1.json", "r") as f:
+                self.t1 = json.load(f)
+            # Начало отсчета времени
+            if before.channel is None and after.channel is not None:
+                self.t1[member.mention] = [time.time(), "bb"]
+                self.data_time[member.mention] = self.data_time.get(member.mention, 0)
+                with open("data/t1.json", "w") as f:
+                    json.dump(self.t1, f, indent=4)
+            # Конец отсчета времени
+            elif before.channel is not None and after.channel is None:
+                t2 = time.time()
+                if self.t1[member.mention][1] != "bb":
+                    t2 = self.t1[member.mention][1]
+                self.data_time[member.mention][0] += t2 - self.t1[member.mention][0]
+                if self.data_time[member.mention][0] >= 86400:
+                    self.data_time[member.mention][0] -= 86400
+                    self.data_time[member.mention][1] += 1
+                    self.rating[member.mention] += 7
+                    await self.cha.send(f"{member.mention} получил 7 рейтинга. Трать дальше свою жизнь впустую!")
+                self.t1[member.mention][0] = "None"
+                with open("data/t1.json", "w") as f:
+                    json.dump(self.t1, f, indent=4)
 
-        # Пользователь замутился
-        if after.self_deaf and after.channel:
-            self.t1[member.mention][1] = time.time()
-            with open("data/t1.json", "w") as f:
-                json.dump(self.t1, f, indent=4)
-        # Пользователь размутился
-        if before.self_deaf and not after.self_deaf:
-            if self.t1[member.mention][1] != "bb":
-                self.t1[member.mention][0] += time.time() - self.t1[member.mention][1]
-            self.t1[member.mention][1] = "bb"
-            with open("data/t1.json", "w") as f:
-                json.dump(self.t1, f, indent=4)
+            # Пользователь замутился
+            if after.self_deaf and after.channel:
+                self.t1[member.mention][1] = time.time()
+                with open("data/t1.json", "w") as f:
+                    json.dump(self.t1, f, indent=4)
+            # Пользователь размутился
+            if before.self_deaf and not after.self_deaf:
+                if self.t1[member.mention][1] != "bb":
+                    self.t1[member.mention][0] += time.time() - self.t1[member.mention][1]
+                self.t1[member.mention][1] = "bb"
+                with open("data/t1.json", "w") as f:
+                    json.dump(self.t1, f, indent=4)
 
-        if before.self_deaf != after.self_deaf:
+            if before.self_deaf != after.self_deaf:
+                self.reload_rate()
+
+                await reward(member, self.rating, self.trigger)
+
+            with open('data/time_data.json', 'w') as f:
+                json.dump(self.data_time, f, indent=4)
+            with open('data/data.json', 'w') as f:
+                json.dump(self.rating, f, indent=4)
+
             self.reload_rate()
-
-            await reward(member, self.rating, self.trigger)
-
-        with open('data/time_data.json', 'w') as f:
-            json.dump(self.data_time, f, indent=4)
-        with open('data/data.json', 'w') as f:
-            json.dump(self.rating, f, indent=4)
-
-        self.reload_rate()
-        await reward(member,self.rating,0)
-        # except Exception as f:
-        #     print(f)
-            # self.rating[f"<@{member.id}>"] = 0
-            # self.data_time[f"<@{member.id}>"] = [0, 0]
-            # self.data_messages[f"<@{member.id}>"] = 0
-            # with open('data/time_data.json', 'w') as f:
-            #     json.dump(self.data_time, f, indent=4)
-            # with open('data/data.json', 'w') as f:
-            #     json.dump(self.rating, f, indent=4)
-            # with open('data/data_messages.json', 'w') as f:
-            #     json.dump(self.data_messages, f, indent=4)
+            await reward(member,self.rating,0)
+        except Exception as f:
+            print(f)
 
 
 async def reward(member,rating,trigger):

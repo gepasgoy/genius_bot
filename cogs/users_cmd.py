@@ -2,6 +2,7 @@ import disnake
 from disnake.ext import commands
 from random import randint
 import json
+import datetime
 
 
 class CMDUsers(commands.Cog):
@@ -28,8 +29,9 @@ class CMDUsers(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        print(f"Bot {self.bot.user} is ready to work!")
-        await self.bot.change_presence(activity=disnake.Game("Nothing"))
+        date = datetime.datetime.today()
+        print(f"Bot {self.bot.user} is ready to work! {date.strftime('%H:%M')}")
+        await self.bot.change_presence(activity=disnake.Game("Тапает Хомяка"))
 
     @commands.Cog.listener()
     async def on_button_click(self,inter: disnake.MessageInteraction):
