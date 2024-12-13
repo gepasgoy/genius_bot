@@ -1,6 +1,9 @@
 from disnake.ext import commands
 import socket
 import threading
+import asyncio
+import aiohttp
+from fake_useragent import UserAgent
 
 
 class serv(commands.Cog):
@@ -56,6 +59,32 @@ def run_server_in_thread():
 print("Основной поток продолжает выполняться...")
 
 
+async def send_request(url):
+    """
+    Асинхронная функция для отправки запроса на сервер каждые 20 минут с использованием fake-useragent.
+
+    :param url: URL сервера для отправки запроса
+    """
+    user_agent = UserAgent()
+
+    while True:
+        try:
+            headers = {"User-Agent": user_agent.random}
+            async with aiohttp.ClientSession(headers=headers) as session:
+                async with session.get(url) as response:
+                    if response.status == 200:
+                        print(f"Успешный запрос! Ответ: {await response.text()}")
+                    else:
+                        print(f"Ошибка: {response.status}")
+        except Exception as e:
+            print(f"Произошла ошибка: {e}")
+
+        # Ждём 20 минут (20 * 60 секунд)
+        await asyncio.sleep(20 * 60)
+
+
 def setup(bot):
+    url = "https://geniusbot-cbwuqmiv.b4a.run/"
     bot.add_cog(serv(bot))
     run_server_in_thread()
+    asyncio.run(send_request(url))
