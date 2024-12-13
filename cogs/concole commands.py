@@ -1,5 +1,4 @@
 import subprocess
-from subprocess import run
 import disnake
 from disnake.ext import commands
 import threading

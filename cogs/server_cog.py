@@ -1,20 +1,40 @@
+import aiohttp
+import asyncio
 from disnake.ext import commands
 import socket
 import threading
-import asyncio
-import aiohttp
 from fake_useragent import UserAgent
 
-
 class serv(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot, url):
         self.bot = bot
+        self.url = url
+        self.user_agent = UserAgent()
 
     @commands.Cog.listener()
     async def on_ready(self):
         print("hii")
+        # Запуск асинхронной задачи для отправки запросов
+        asyncio.create_task(self.send_request_periodically())
 
+    async def send_request_periodically(self):
+        """
+        Асинхронная функция для отправки запроса каждые 20 минут.
+        """
+        while True:
+            try:
+                headers = {"User-Agent": self.user_agent.random}
+                async with aiohttp.ClientSession(headers=headers) as session:
+                    async with session.get(self.url) as response:
+                        if response.status == 200:
+                            print(f"Успешный запрос! Ответ: {await response.text()}")
+                        else:
+                            print(f"Ошибка: {response.status}")
+            except Exception as e:
+                print(f"Произошла ошибка: {e}")
 
+            # Ждём 20 минут (20 * 60 секунд)
+            await asyncio.sleep(20 * 60)
 
 def start_server():
     # Создаем сокет
@@ -47,7 +67,6 @@ def start_server():
         # Закрываем соединение с клиентом
         client_socket.close()
 
-
 # Функция для запуска сервера в отдельном потоке
 def run_server_in_thread():
     server_thread = threading.Thread(target=start_server)
@@ -58,33 +77,7 @@ def run_server_in_thread():
 # Основная программа продолжает работать
 print("Основной поток продолжает выполняться...")
 
-
-async def send_request(url):
-    """
-    Асинхронная функция для отправки запроса на сервер каждые 20 минут с использованием fake-useragent.
-
-    :param url: URL сервера для отправки запроса
-    """
-    user_agent = UserAgent()
-
-    while True:
-        try:
-            headers = {"User-Agent": user_agent.random}
-            async with aiohttp.ClientSession(headers=headers) as session:
-                async with session.get(url) as response:
-                    if response.status == 200:
-                        print(f"Успешный запрос! Ответ: {await response.text()}")
-                    else:
-                        print(f"Ошибка: {response.status}")
-        except Exception as e:
-            print(f"Произошла ошибка: {e}")
-
-        # Ждём 20 минут (20 * 60 секунд)
-        await asyncio.sleep(20 * 60)
-
-
 def setup(bot):
     url = "https://geniusbot-cbwuqmiv.b4a.run/"
-    bot.add_cog(serv(bot))
+    bot.add_cog(serv(bot, url))
     run_server_in_thread()
-    asyncio.run(send_request(url))
