@@ -41,6 +41,7 @@ class Buff(commands.Cog):
             embed.set_thumbnail(url=img)
             await inter.send(embed=embed)
         except Exception as e:
+            print("abb")
             print(e)
             await inter.send("Ошибка! Такого ID нет")
 
