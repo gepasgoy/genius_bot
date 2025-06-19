@@ -5,6 +5,7 @@ from disnake.ext import tasks
 import time
 import asyncio
 import random
+from cogs.rest.restapi_req import restapi_funcs
 
 class BetView(disnake.ui.View):
     def __init__(self, author_id, human_id, bet, reason):
@@ -13,8 +14,7 @@ class BetView(disnake.ui.View):
         self.human_id = human_id
         self.bet = bet
         self.reason = reason
-        with open("data/data.json", "r") as f:
-            self.rating = json.load(f)
+        self.rating = restapi_funcs.get_dict_records("Data","rate")
 
     @disnake.ui.button(label="Поучаствовать на стороне начавшего спор", style=disnake.ButtonStyle.success)
     async def participate_author(self, button: disnake.ui.Button, inter: disnake.MessageInteraction):
@@ -80,6 +80,11 @@ class Rating(commands.Cog):
         self.t1 = time.time()
         self.last_mess_time = {}
         self.censored_words = ["женщина","девушка","девушку"]
+        # self.rating = restapi_funcs.get_dict_records("Data", "rate")
+        # self.data_messages = restapi_funcs.get_dict_records("Data", "messages")
+        # self.data_time = restapi_funcs.get_dict_records("Time",["time","circles"], convert_types=[float,int])
+        # with open('data/time_data.json', 'w') as f:
+        #     json.dump(self.data_time, f, indent=4)
         with open("data/data.json", "r") as f:
             self.rating = json.load(f)
         with open("data/data_messages.json", "r") as k:
@@ -93,9 +98,9 @@ class Rating(commands.Cog):
 
     def reload_rate(self):
         del self.rating
-        with open("data/data.json","r") as f:
-            self.rating = json.load(f)
+        self.rating = restapi_funcs.get_dict_records("Data","rate")
         return self.rating
+
 
     @tasks.loop(minutes=10)
     async def check_connection(self):
@@ -144,7 +149,7 @@ class Rating(commands.Cog):
                     break
 
         if self.data_messages[bb] % 50 == 0:
-            self.rating[bb] += 3
+            restapi_funcs.update_field_by_discordid("Data",bb,"rate",3)
             await message.reply(f"{bb}, поздравляю тебя, ты уже написал целых {self.data_messages[bb]} сообщения(й), за это я награжу тебя. Продолжай в том же духе!")
             await message.reply(f"{bb} получил +3 рейтинга за свою активность, истинный дегенерат!")
             if self.rating[bb] == 100:
@@ -152,20 +157,17 @@ class Rating(commands.Cog):
             else:
                 await message.reply(file=disnake.File("imgs/social_prima.jpg"))
 
-            with open('data/data.json', 'w') as f:
-                json.dump(self.rating, f, indent=4)
+            self.rating[bb]+=3
 
         if message.content.lower() == "геншин импакт говно":
             if self.rating[bb] == 0:
                 await message.reply("Поздравляю! ты получил +1 соц.рейтинг")
+                restapi_funcs.update_field_by_discordid("Data", bb, "rate", 1)
                 self.rating[bb] += 1
-                with open('data/data.json', 'w') as f:
-                    json.dump(self.rating, f, indent=4)
             else:
                 await message.reply("Не много тебе,чепуха?")
 
-        with open('data/data_messages.json', 'w') as k:
-            json.dump(self.data_messages, k, indent=4)
+        restapi_funcs.update_field_by_discordid("Data",bb,"messages", 1)
 
     @commands.slash_command()
     @commands.has_any_role(1089868546286289006)
@@ -181,7 +183,6 @@ class Rating(commands.Cog):
         description="Показывает социальный рейтинг участников сервера."
     )
     async def rate(self, inter):
-        self.reload_rate()
         rate_sort = {k : v for k, v in sorted(self.rating.items(), reverse=True, key=lambda item: item[1])}
         all_rate = ""
         for key in rate_sort:
@@ -201,7 +202,7 @@ class Rating(commands.Cog):
     @commands.slash_command()
     async def mytime(self, inter):
         await inter.response.defer()
-        await asyncio.sleep(4)
+        await asyncio.sleep(3)
         with open("data/time_data.json") as f:
             data_time = json.load(f)
 
@@ -229,14 +230,13 @@ class Rating(commands.Cog):
             embed_ret.set_image(file=disnake.File(random.choice(social_plus)))
         elif int(number) < 0 and self.rating[mention] - int(number) < 0:
             embed_ret.set_image(file=disnake.File(random.choice(social_minus)))
+
+        restapi_funcs.update_field_by_discordid("Data",mention,"rate",int(number))
         self.rating[mention] += int(number)
-
-        with open('data/data.json', 'w') as f:
-            json.dump(self.rating, f, indent=4)
         await inter.send(embed=embed_ret)
-        self.reload_rate()
 
-    @commands.slash_command()
+    @commands.slash_command(description="Временно не работает, ждити второго апдейта")
+    @commands.has_any_role(1089868546286289006, 910982734074249237)
     async def bet(self, inter, причина: str, ставка: int, человек: disnake.Member):
         reason = причина
         bet = ставка
@@ -250,6 +250,7 @@ class Rating(commands.Cog):
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
+
         if member.mention == "<@724317992367685906>":
             if after.channel and after.channel.id == 1012106016332189747:
                 await member.move_to(channel=None)
@@ -266,6 +267,7 @@ class Rating(commands.Cog):
                 self.data_time[member.mention] = self.data_time.get(member.mention, 0)
                 with open("data/t1.json", "w") as f:
                     json.dump(self.t1, f, indent=4)
+                    
             # Конец отсчета времени
             elif before.channel is not None and after.channel is None:
                 t2 = time.time()
@@ -276,16 +278,16 @@ class Rating(commands.Cog):
                     self.data_time[member.mention][0] -= 86400
                     self.data_time[member.mention][1] += 1
                     self.rating[member.mention] += 7
+                    restapi_funcs.update_field_by_discordid("Data",member.mention,"rate",7)
                     await self.cha.send(f"{member.mention} получил 7 рейтинга. Трать дальше свою жизнь впустую!")
                 self.t1[member.mention][0] = "None"
-                with open("data/t1.json", "w") as f:
-                    json.dump(self.t1, f, indent=4)
 
             # Пользователь замутился
             if after.self_deaf and after.channel:
                 self.t1[member.mention][1] = time.time()
                 with open("data/t1.json", "w") as f:
                     json.dump(self.t1, f, indent=4)
+
             # Пользователь размутился
             if before.self_deaf and not after.self_deaf:
                 if self.t1[member.mention][1] != "bb":
@@ -295,7 +297,7 @@ class Rating(commands.Cog):
                     json.dump(self.t1, f, indent=4)
 
             if before.self_deaf != after.self_deaf:
-                self.reload_rate()
+                print("ye")
 
                 await reward(member, self.rating, self.trigger)
 
@@ -303,8 +305,12 @@ class Rating(commands.Cog):
                 json.dump(self.data_time, f, indent=4)
             with open('data/data.json', 'w') as f:
                 json.dump(self.rating, f, indent=4)
+            restapi_funcs.update_field_by_discordid("Time",member.mention,"time",str(self.data_time[member.mention][0]), increment=False)
+            print(self.data_time[member.mention][0])
+            restapi_funcs.update_field_by_discordid("Time", member.mention, "circles", str(self.data_time[member.mention][1]), increment=False)
+            print(self.data_time[member.mention])
 
-            self.reload_rate()
+            print("после релоада")
             await reward(member,self.rating,0)
         except Exception as f:
             print(f)
@@ -335,15 +341,14 @@ async def reward(member,rating,trigger):
         if rating[f"<@{member.id}>"] <= -100:
             await member.timeout(duration=86400)
             rating[f"<@{member.id}>"] += 10
+            restapi_funcs.update_field_by_discordid("Data",f"<@{member.id}>","rate",10)
+
     else:
         if shitter in member.roles:
             await member.remove_roles(shitter)
 
     if rating[f"<@{member.id}>"] <= 35 and trigger == 1:
         await member.move_to(channel=None)
-
-with open("data/data_messages.json", 'r') as f:
-    data_messages = f.read()
 
 
 def scl(bb, c=0):

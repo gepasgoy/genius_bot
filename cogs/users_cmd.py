@@ -3,7 +3,7 @@ from disnake.ext import commands
 from random import randint
 import json
 import datetime
-
+from cogs.rest.restapi_req import restapi_funcs
 
 class CMDUsers(commands.Cog):
 
@@ -31,7 +31,7 @@ class CMDUsers(commands.Cog):
     async def on_ready(self):
         date = datetime.datetime.today()
         print(f"Bot {self.bot.user} is ready to work! {date.strftime('%H:%M')}")
-        await self.bot.change_presence(activity=disnake.Game("Тапает Хомяка"))
+        await self.bot.change_presence(activity=disnake.Game("Just chilling"))
 
     @commands.Cog.listener()
     async def on_button_click(self,inter: disnake.MessageInteraction):
@@ -84,6 +84,7 @@ class CMDUsers(commands.Cog):
             json.dump(self.rating, f, indent=4)
         with open('data/data_messages.json', 'w') as f:
             json.dump(self.data_messages, f, indent=4)
+
 
     @commands.command()
     async def profile(self, ctx):
