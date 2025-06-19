@@ -40,7 +40,8 @@ class Buff(commands.Cog):
             )
             embed.set_thumbnail(url=img)
             await inter.send(embed=embed)
-        except:
+        except Exception as e:
+            print(e)
             await inter.send("Ошибка! Такого ID нет")
 
     @commands.slash_command(description="Укажи свой id стима или доты, чтобы ты смог удобно чекать стату")
